@@ -1,0 +1,84 @@
+ # DataInputSettings
+image_dir: '/hy-tmp/files256/'
+ann_path: '/root/MRG/data/mimic_annotation_promptmrg.json'
+image_size: 224
+# clip_features_path: 'data/clip_features.npz'
+
+# DataLoaderSettings
+dataset_name: 'mimic_cxr'
+threshold: 3
+num_workers: 4
+batch_size: 8
+distribution: [
+    0.05507588906532738,
+    0.2219210458288711,
+    0.24894198456368405,
+    0.03815133498282802,
+    0.07480335315188892,
+    0.02870859337493999,
+    0.03160013294434802,
+    0.2093688836367665,
+    0.02353853539643266,
+    0.18073045533439197,
+    0.0206359171313564,
+    0.037213338749584546,
+    0.22214261974223568,
+    0.23941430628900623
+]
+
+# ModelSettingss
+vision_model: 'resnet101'
+load_pretrained: False
+BertConfig: {
+  "architectures": [
+    "BertModel"
+  ],
+  
+  "attention_probs_dropout_prob": 0.1,
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 768,
+  "initializer_range": 0.02,
+  "intermediate_size": 3072,
+  "layer_norm_eps": !!float 1e-12,
+  "max_position_embeddings": 512,
+  "model_type": "bert",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 12,
+  "pad_token_id": 0,
+  "type_vocab_size": 2,
+  "vocab_size": 30522,
+  "encoder_width": 768,
+  "add_cross_attention": true   
+}
+# SampleRelated
+beam_size: 3
+gen_max_len: 150
+gen_min_len: 100
+
+# TrainerSettings
+n_gpu: 1
+epochs: 100
+save_dir: 'results'
+monitor_metric: 'ce_f1'
+
+# Optimization
+init_lr: !!float 5e-5
+min_lr: !!float 5e-6
+warmup_lr: !!float 5e-7
+weight_decay: 0.05
+warmup_steps: 5000
+
+# Others
+seed: 9233
+distributed: false
+dist_url: 'env://'
+device: 'cuda'
+
+# ClsHead
+cls_weight: 4
+clip_k: 21
+
+# Metric
+chexbert_weight: ./checkpoints/stanford/chexbert/chexbert.pth
+

@@ -1,0 +1,15 @@
+from PIL import Image
+from PIL import ImageFile
+import json
+import os
+
+ann = json.load(open('/hy-tmp/files256/mimic_full.json'))['train']
+imgrootpath = "/hy-tmp/files256/"
+for item in ann:
+    image_path = item['image_path']
+    if "f1a300b3-dcc6418a-e19defdf-9f518a8b-91c279d4" in image_path[0]:
+        print(item)
+    if os.path.exists(os.path.join(imgrootpath, image_path[0].replace('jpg','png'))):
+        pass
+    else:
+        print(item)
