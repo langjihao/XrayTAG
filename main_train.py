@@ -12,7 +12,18 @@ from modules import utils
 from modules.config_loader import load_config
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'True'
-
+class MultiLabelSoftmaxLoss(nn.Module):
+    def __init__(self):
+        super(MultiLabelSoftmaxLoss, self).__init__()
+        self.ce_loss = nn.CrossEntropyLoss(reduction='none')
+    
+    def forward(self, predictions, targets):
+        # predictions shape: (batch_size, num_descriptors, options_per_descriptor)
+        # targets shape: (batch_size, num_descriptors)
+        loss = 0
+        for i in range(predictions.size(1)):
+            loss += self.ce_loss(predictions[:, i, :], targets[:, i])
+        return loss.mean()
 
 def main(config, stage='dev'):
     '''
@@ -65,7 +76,7 @@ def main(config, stage='dev'):
         print("load checkpoint from {}".format(args.load_pretrained))
 
     # get function handles of loss and metrics
-    criterion_cls = nn.CrossEntropyLoss()
+    criterion_cls = MultiLabelSoftmaxLoss()
 
 
     model = model.to(device)   
@@ -74,4 +85,4 @@ def main(config, stage='dev'):
     trainer.train()
 
 if __name__ == '__main__':
-    main(config = 'configs/PromptMRGCLS.yaml',stage='full')
+    main(config = 'configs/PromptMRGCLS_V3.yaml',stage='exp')

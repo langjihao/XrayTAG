@@ -33,7 +33,9 @@ def compute_metrics(gts, res):
         'ce_num_examples': float(len(res_chexbert)),
     }
     return scores
+# 自定义的损失函数
 
+    
 class BaseTrainer(object):
     def __init__(self, model, criterion_cls, base_probs, args, device):
         if args.stage != "dev":
@@ -148,6 +150,7 @@ class Trainer(BaseTrainer):
             clip_memory = clip_memory.to(self.device)
             self.lr_scheduler.step(cur_epoch=epoch, cur_step=batch_idx)
             preds = self.model(images, clip_memory,self.base_probs)
+            # cls_labels.shape = (N, 18)
             loss = self.criterion_cls(preds, cls_labels)
             train_loss += loss.item()
             loss.backward()
