@@ -59,7 +59,7 @@ def main(config, stage='dev'):
     train_dataloader, val_dataloader, test_dataloader = create_loader([train_dataset, val_dataset, test_dataset], samplers, batch_size=[args.batch_size]*3, num_workers=[4,4,4], is_trains=[True, False, False], collate_fns=[None, None, None]) 
 
     model = PromptCLS(args)
-    args.load_pretrained = '/hy-tmp/origin.pth'
+    args.load_pretrained = '/root/OriginPromptMRG/PromptMRG/results/model_best.pth'
     if args.load_pretrained:
         state_dict = torch.load(args.load_pretrained, map_location="cpu")
         msg = model.load_state_dict(state_dict, strict=False)

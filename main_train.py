@@ -4,6 +4,7 @@ from torch import nn
 import numpy as np
 from modules.trainer import Trainer
 from models.blip import PromptCLS
+from models.plaincnn import PlainCNN
 from dataset import create_dataset 
 from dataset import create_sampler 
 from dataset import create_loader 
@@ -12,6 +13,7 @@ from modules import utils
 from modules.config_loader import load_config
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'True'
+
 class MultiLabelSoftmaxLoss(nn.Module):
     def __init__(self):
         super(MultiLabelSoftmaxLoss, self).__init__()
@@ -69,14 +71,14 @@ def main(config, stage='dev'):
 
     train_dataloader, val_dataloader, test_dataloader = create_loader([train_dataset, val_dataset, test_dataset], samplers, batch_size=[args.batch_size]*3, num_workers=[4,4,4], is_trains=[True, False, False], collate_fns=[None, None, None]) 
 
-    model = PromptCLS(args)
+    model = PlainCNN(args)
     if args.load_pretrained:
         state_dict = torch.load(args.load_pretrained, map_location="cpu")
         msg = model.load_state_dict(state_dict, strict=False)
         print("load checkpoint from {}".format(args.load_pretrained))
 
     # get function handles of loss and metrics
-    criterion_cls = MultiLabelSoftmaxLoss()
+    criterion_cls = nn.CrossEntropyLoss()
 
 
     model = model.to(device)   
@@ -85,4 +87,4 @@ def main(config, stage='dev'):
     trainer.train()
 
 if __name__ == '__main__':
-    main(config = 'configs/PromptMRGCLS_V3.yaml',stage='exp')
+    main(config = 'configs/PromptMRGCLS_V2.yaml',stage='exp')
