@@ -1,6 +1,3 @@
-project: "MRG"
-experiment: "原权重分类模型变成18*2分类"
-description: "将标签转为0-1分类，即只判断阳性和阴性,100%准确率。和0-3分类全准确的对比"
 # DataInputSettings
 image_dir: '/hy-tmp/files256/'
 ann_path: '/root/MRG/data/mimic_dev.json'
