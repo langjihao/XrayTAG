@@ -5,52 +5,47 @@ import pandas as pd
 import numpy as np
 from numpy import inf
 import copy
-from .optims import LinearWarmupCosineLRScheduler
+# from .optims import LinearWarmupCosineLRScheduler
+from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 import swanlab
+from torchmetrics import AveragePrecision, AUROC
+from torchmetrics.classification import (
+    MultilabelAveragePrecision,
+    MultilabelAUROC,
+    MultilabelPrecision,
+    MultilabelRecall,
+    MultilabelF1Score
+)
+class Metrics:
+    def __init__(self, num_classes):
+        map_metric = MultilabelAveragePrecision(num_labels=num_classes, average='macro')
+        auroc_metric = MultilabelAUROC(num_labels=num_classes, average='macro')
+        precision_metric = MultilabelPrecision(num_labels=num_classes, average='macro')
+        recall_metric = MultilabelRecall(num_labels=num_classes, average='macro')
+        f1_metric = MultilabelF1Score(num_labels=num_classes, average='macro')
+    def compute(self,labels,preds):
+        map_score = self.map_metric(preds, labels)
+        auroc_score = self.auroc_metric(preds, labels)
+        precision_score = self.precision_metric(preds, labels)
+        recall_score = self.recall_metric(preds, labels)
+        f1_score = self.f1_metric(preds, labels)
+        return {
+            'map': map_score,
+            'auroc': auroc_score,
+            'precision': precision_score,
+            'recall': recall_score,
+            'f1': f1_score
+        }
 
-def compute_metrics(gts, res):
-    gts_chexbert = np.array(gts)
-    res_chexbert = np.array(res)
-    res_chexbert = (res_chexbert == 1)
-    gts_chexbert = (gts_chexbert == 1)
-
-    tp = (res_chexbert * gts_chexbert).astype(float)
-
-    fp = (res_chexbert * ~gts_chexbert).astype(float)
-    fn = (~res_chexbert * gts_chexbert).astype(float)
-
-    tp_eg = tp.sum(1)
-    fp_eg = fp.sum(1)
-    fn_eg = fn.sum(1)
-
-
-    scores = {
-        # example-based CE metrics
-        'ce_precision': np.round(np.nan_to_num(tp_eg / (tp_eg + fp_eg)).mean(), 3),
-        'ce_recall': np.round(np.nan_to_num(tp_eg / (tp_eg + fn_eg)).mean(), 3),
-        'ce_f1': np.round(np.nan_to_num(tp_eg / (tp_eg + 0.5 * (fp_eg + fn_eg))).mean(), 3),
-        'ce_num_examples': float(len(res_chexbert)),
-    }
-    return scores
-# 自定义的损失函数
 
     
 class BaseTrainer(object):
-    def __init__(self, model, criterion_cls, base_probs, args, device):
-        if args.stage != "dev":
-            swanlab.init(
-            # 设置将记录此次运行的项目信息
-            project="MRG",
-            # 跟踪超参数和运行元数据
-            config=args,
-            )
-
+    def __init__(self, model, criterion_cls, args, device):
         self.args = args
         self.model = model
         self.device = device
         self.criterion_cls = criterion_cls
-        self.base_probs = base_probs
         #################
         self.optimizer = None
         num_parameters = 0
@@ -64,6 +59,16 @@ class BaseTrainer(object):
                 p_wd.append(p)
             num_parameters += p.data.nelement()
         print("number of trainable parameters: {}".format(num_parameters))
+        args.num_parameters = num_parameters
+        if args.stage != "dev":
+            swanlab.init(
+            # 设置将记录此次运行的项目信息
+            project=args.project,
+            experiment_name=args.experiment_name,
+            description = args.description,
+            # 跟踪超参数和运行元数据
+            config=args,
+            )
         optim_params = [
             {
                 "params": p_wd,
@@ -88,8 +93,8 @@ class BaseTrainer(object):
         self.log_best = {}
 
         self.start_epoch = 1
-        self.checkpoint_dir = args.save_dir
-
+        self.checkpoint_dir = args.save_dir + self.args.experiment_name + '/'
+        self.metric = Metrics(14)
         if not os.path.exists(self.checkpoint_dir):
             os.makedirs(self.checkpoint_dir)
 
@@ -100,14 +105,16 @@ class BaseTrainer(object):
     def train(self):
         for epoch in range(self.start_epoch, self.epochs + 1):
 
-            result = self._train_epoch_blip(epoch)
-            result = self.eval_blip(result)
+            result = self._train_step(epoch)
+            result = self.eval_step(result)
 
             # save logged information 
             log = {'epoch': epoch}
             log.update(result)
             if self.args.stage != "dev":
                 swanlab.log(log)
+            # save current model
+            torch.save(self.model.state_dict(), os.path.join(self.checkpoint_dir, 'current.pth'))
             # record best
             if log[self.mnt_metric] >= self.mnt_best:
                 self.mnt_best = log[self.mnt_metric]
@@ -119,8 +126,6 @@ class BaseTrainer(object):
             # print logged information 
             for key, value in log.items():
                 print('\t{:15s}: {}'.format(str(key), value))
-
-
         print('Best results w.r.t {}:'.format(self.mnt_metric))
         for key, value in self.log_best.items():
             print('\t{:15s}: {}'.format(str(key), value))
@@ -131,26 +136,16 @@ class Trainer(BaseTrainer):
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
         self.test_dataloader = test_dataloader
-        self.lr_scheduler = LinearWarmupCosineLRScheduler(
-            self.optimizer, 
-            self.args.epochs, 
-            self.args.min_lr, 
-            self.args.init_lr, 
-            decay_rate=None, 
-            warmup_start_lr=self.args.warmup_lr,
-            warmup_steps=self.args.warmup_steps,
-        )
-
-    def _train_epoch_blip(self, epoch):
+        self.lr_scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=self.args.warmup_steps, num_training_steps=self.args.epochs*len(self.train_dataloader))
+    def _train_step(self, epoch):
         train_loss = 0
         self.model.train()
         for batch_idx, (images, cls_labels, clip_memory) in tqdm(enumerate(self.train_dataloader),total = len(self.train_dataloader)):
             images = images.to(self.device)
             cls_labels = cls_labels.to(self.device)
-            clip_memory = clip_memory.to(self.device)
             self.lr_scheduler.step(cur_epoch=epoch, cur_step=batch_idx)
-            preds = self.model(images, clip_memory,self.base_probs)
-            # cls_labels.shape = (N, 18)
+            preds = self.model(images)
+            # cls_labels.shape = (N, 14)
             loss = self.criterion_cls(preds, cls_labels)
             train_loss += loss.item()
             loss.backward()
@@ -161,87 +156,27 @@ class Trainer(BaseTrainer):
 
         return log
 
-    def eval_blip(self, log):
+    def eval_step(self, log):
         self.model.eval()
-        logits = []
-        counts = []
         with torch.no_grad():
             val_gts, val_res = [], []
             for batch_idx, (images,cls_labels, clip_memory) in tqdm(enumerate(self.val_dataloader),total = len(self.val_dataloader)):
                 images = images.to(self.device) 
                 cls_labels = cls_labels.to(self.device)
-                clip_memory = clip_memory.to(self.device)
-                preds,preds_logits = self.model.generate(images, clip_memory)
-                
+                preds = self.model(images)
                 val_gts += cls_labels.tolist()
                 val_res += preds
-                ## logit adjustment
-                cls_labels = (cls_labels==1).float()
-                logit = preds_logits*cls_labels
-                logits.append(logit.cpu().numpy())
-                counts.append(cls_labels.cpu().numpy())
-            val_score = compute_metrics(val_gts, val_res)
+            val_score = self.metric.compute(val_gts, val_res)
             log.update(**{'val_' + k: v for k, v in val_score.items()})
-            #######
-            logits = np.concatenate(logits, axis=0)
-            counts = np.concatenate(counts, axis=0)
-            logits = np.sum(logits, 0)
-            counts = np.sum(counts, 0)
-            logits = logits / counts
-            logits /= np.max(logits)
-            logits = np.append(logits, [1,1,1,1]) # 4 auxiliary diseases
-            #######
-            self.base_probs = logits # update class distribution
-            
-
         with torch.no_grad():
             test_gts, test_res = [], []
             for batch_idx, (images, cls_labels, clip_memory) in tqdm(enumerate(self.test_dataloader),total = len(self.test_dataloader)):
                 images = images.to(self.device) 
-                clip_memory = clip_memory.to(self.device) 
-                preds,preds_logits = self.model.generate(images, clip_memory)
+                preds = self.model(images)
                 test_gts += cls_labels.tolist()
                 test_res += preds
-            test_score = compute_metrics(test_gts, test_res)
+            test_score = self.metric.compute(test_gts, test_res)
             log.update(**{'test_' + k: v for k, v in test_score.items()})
         return log
 
-    
-if __name__ == '__main__':
-    import random
-    import math
-    res = [ [3, 3, 3, 3, 2, 0, 0, 0, 1, 1, 2, 2, 2, 1, 3, 2, 2, 2],
-            [2, 2, 2, 2, 1, 1, 0, 1, 3, 1, 1, 0, 1, 3, 0, 1, 2, 3],
-            [0, 2, 3, 2, 0, 0, 0, 2, 3, 3, 2, 3, 3, 0, 2, 0, 2, 1],
-            [2, 0, 0, 2, 1, 2, 1, 1, 1, 2, 2, 1, 0, 3, 1, 2, 0, 1],
-            [0, 1, 3, 1, 3, 3, 2, 0, 2, 0, 2, 0, 3, 2, 3, 3, 2, 1],
-            [2, 2, 3, 3, 0, 3, 3, 2, 2, 0, 2, 2, 2, 0, 1, 2, 2, 1],
-            [2, 0, 0, 0, 3, 0, 2, 2, 3, 2, 3, 1, 3, 3, 0, 2, 2, 3],
-            [2, 0, 2, 2, 3, 2, 0, 1, 0, 0, 1, 1, 3, 2, 1, 3, 1, 2]]
-    gts = [ [3, 3, 3, 3, 2, 0, 0, 0, 1, 1, 2, 2, 2, 1, 3, 2, 2, 2],
-            [2, 2, 2, 2, 1, 1, 0, 1, 3, 1, 1, 0, 1, 3, 0, 1, 2, 3],
-            [0, 2, 3, 2, 0, 0, 0, 2, 3, 3, 2, 3, 3, 0, 2, 0, 2, 1],
-            [2, 0, 0, 2, 1, 2, 1, 1, 1, 2, 2, 1, 0, 3, 1, 2, 0, 1],
-            [0, 1, 3, 1, 3, 3, 2, 0, 2, 0, 2, 0, 3, 2, 3, 3, 2, 1],
-            [2, 2, 3, 3, 0, 3, 3, 2, 2, 0, 2, 2, 2, 0, 1, 2, 2, 1],
-            [2, 0, 0, 0, 3, 0, 2, 2, 3, 2, 3, 1, 3, 3, 0, 2, 2, 3],
-            [2, 0, 2, 2, 3, 2, 0, 1, 0, 0, 1, 1, 3, 2, 1, 3, 1, 2]]
-    # 计算总元素数量
-    total_elements = sum(len(row) for row in gts)
-
-    # 确定要改乱的元素数量，这里以10%为例
-    num_to_shuffle = math.floor(total_elements * 0.5)
-
-    # 随机选择要改乱的元素的索引
-    indices_to_shuffle = random.sample(range(total_elements), num_to_shuffle)
-
-    # 对于每个选中的索引，随机生成一个新值并替换
-    for index in indices_to_shuffle:
-        # 计算行和列
-        row = index // len(gts[0])
-        col = index % len(gts[0])
-        # 生成一个新值并替换，假设新值范围是0到3
-        gts[row][col] = random.randint(0, 3)
-    scores = compute_metrics(gts, res)
-    print(scores)
     

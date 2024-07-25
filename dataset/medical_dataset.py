@@ -47,7 +47,7 @@ class generation_train(Dataset):
         self.max_words = max_words      
         self.dataset = dataset
         self.args = args
-        clip_features = np.load("data/clip.npz")
+        clip_features = np.load(args.clip_features_path)
         self.clip_features = clip_features['arr_0']
         
     def __len__(self):
@@ -62,6 +62,8 @@ class generation_train(Dataset):
         image = self.transform(image)
         
         cls_labels = ann['labels']
+        labels = labels[:14]
+        labels = [2 if label in [0, 2, 3] else label for label in labels]
         cls_labels = torch.from_numpy(np.array(cls_labels)).long()
         clip_indices = ann['clip_indices'][:self.args.clip_k]
         clip_memory = self.clip_features[clip_indices]
@@ -81,7 +83,7 @@ class generation_eval(Dataset):
         self.image_root = image_root
         self.dataset = dataset
         self.args = args
-        clip_features = np.load("data/clip.npz")
+        clip_features = np.load(args.clip_features_path)
         self.clip_features = clip_features['arr_0']
         
     def __len__(self):
@@ -95,6 +97,8 @@ class generation_eval(Dataset):
         image = self.transform(image)
 
         cls_labels = ann['labels']
+        labels = labels[:14]
+        labels = [2 if label in [0, 2, 3] else label for label in labels]
         cls_labels = torch.from_numpy(np.array(cls_labels))
         clip_indices = ann['clip_indices'][:self.args.clip_k]
         clip_memory = self.clip_features[clip_indices]

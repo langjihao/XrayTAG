@@ -145,7 +145,6 @@ datasets/
 *.dat
 
 # Model files
-models/
 *.h5
 *.pkl
 *.ckpt
