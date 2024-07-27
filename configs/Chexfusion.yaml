@@ -17,6 +17,7 @@ class_name:
     Lung Lesion,
     Edema,
     Consolidation,
+    Pneumonia,
     Atelectasis,
     Pneumothorax,
     Pleural Effusion,
@@ -31,6 +32,7 @@ class_instance_nums:
     2533,
     38574,
     16038,
+    48093,
     67597,
     14983,
     69240,
@@ -53,6 +55,7 @@ load_pretrained: False
 
 # TrainerSettings
 n_gpu: 1
+device: 'cuda'
 epochs: 20
 early_stop: 5
 monitor_metric: 'mAP'
@@ -66,3 +69,4 @@ loss: 'asl'
 # warmup_steps: 3000
 lr: !!float 3e-5
 warmup_steps: 300
+weight_decay: 0.05

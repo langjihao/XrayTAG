@@ -47,8 +47,8 @@ class generation_train(Dataset):
         self.max_words = max_words      
         self.dataset = dataset
         self.args = args
-        clip_features = np.load(args.clip_features_path)
-        self.clip_features = clip_features['arr_0']
+        # clip_features = np.load(args.clip_features_path)
+        # self.clip_features = clip_features['arr_0']
         
     def __len__(self):
         return len(self.ann)
@@ -61,15 +61,14 @@ class generation_train(Dataset):
         image = Image.open(os.path.join(self.image_root, image_path[0].replace('jpg','png'))).convert('RGB')
         image = self.transform(image)
         
-        cls_labels = ann['labels']
-        labels = labels[:14]
-        labels = [2 if label in [0, 2, 3] else label for label in labels]
-        cls_labels = torch.from_numpy(np.array(cls_labels)).long()
-        clip_indices = ann['clip_indices'][:self.args.clip_k]
-        clip_memory = self.clip_features[clip_indices]
-        clip_memory = torch.from_numpy(clip_memory).float()
+        labels = ann['labels'][:14]
+        labels = [0 if label in [0, 2, 3] else label for label in labels]
+        labels = torch.from_numpy(np.array(labels)).long()
+        # clip_indices = ann['clip_indices'][:self.args.clip_k]
+        # clip_memory = self.clip_features[clip_indices]
+        # clip_memory = torch.from_numpy(clip_memory).float()
 
-        return image, cls_labels, clip_memory
+        return image, labels#, clip_memory
     
 class generation_eval(Dataset):
     def __init__(self, transform, image_root, ann_root, max_words=100, split='val', dataset='mimic_cxr', args=None):
@@ -83,8 +82,8 @@ class generation_eval(Dataset):
         self.image_root = image_root
         self.dataset = dataset
         self.args = args
-        clip_features = np.load(args.clip_features_path)
-        self.clip_features = clip_features['arr_0']
+        # clip_features = np.load(args.clip_features_path)
+        # self.clip_features = clip_features['arr_0']
         
     def __len__(self):
         return len(self.ann)
@@ -96,12 +95,12 @@ class generation_eval(Dataset):
         image = Image.open(os.path.join(self.image_root, image_path[0].replace('jpg','png'))).convert('RGB')
         image = self.transform(image)
 
-        cls_labels = ann['labels']
-        labels = labels[:14]
-        labels = [2 if label in [0, 2, 3] else label for label in labels]
-        cls_labels = torch.from_numpy(np.array(cls_labels))
-        clip_indices = ann['clip_indices'][:self.args.clip_k]
-        clip_memory = self.clip_features[clip_indices]
-        clip_memory = torch.from_numpy(clip_memory).float()
 
-        return image, cls_labels, clip_memory
+        labels = ann['labels'][:14]
+        labels = [0 if label in [0, 2, 3] else label for label in labels]
+        labels = torch.from_numpy(np.array(labels))
+        # clip_indices = ann['clip_indices'][:self.args.clip_k]
+        # clip_memory = self.clip_features[clip_indices]
+        # clip_memory = torch.from_numpy(clip_memory).float()
+
+        return image, labels #clip_memory

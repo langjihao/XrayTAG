@@ -18,24 +18,31 @@ from torchmetrics.classification import (
     MultilabelF1Score
 )
 class Metrics:
-    def __init__(self, num_classes):
-        map_metric = MultilabelAveragePrecision(num_labels=num_classes, average='macro')
-        auroc_metric = MultilabelAUROC(num_labels=num_classes, average='macro')
-        precision_metric = MultilabelPrecision(num_labels=num_classes, average='macro')
-        recall_metric = MultilabelRecall(num_labels=num_classes, average='macro')
-        f1_metric = MultilabelF1Score(num_labels=num_classes, average='macro')
+    def __init__(self, num_classes, device='cpu'):
+        self.device = device
+        self.map_metric = MultilabelAveragePrecision(num_labels=num_classes, average='macro')
+        self.auroc_metric = MultilabelAUROC(num_labels=num_classes, average='macro')
+        self.precision_metric = MultilabelPrecision(num_labels=num_classes, average='macro')
+        self.recall_metric = MultilabelRecall(num_labels=num_classes, average='macro')
+        self.f1_metric = MultilabelF1Score(num_labels=num_classes, average='macro')
     def compute(self,labels,preds):
+        if isinstance(labels, list):
+            labels = torch.stack(labels)
+        if isinstance(preds, list):
+            preds = torch.stack(preds)
+        labels = labels.to(self.device)
+        preds = preds.to(self.device)
         map_score = self.map_metric(preds, labels)
         auroc_score = self.auroc_metric(preds, labels)
         precision_score = self.precision_metric(preds, labels)
         recall_score = self.recall_metric(preds, labels)
         f1_score = self.f1_metric(preds, labels)
         return {
-            'map': map_score,
-            'auroc': auroc_score,
-            'precision': precision_score,
-            'recall': recall_score,
-            'f1': f1_score
+            'mAP': map_score,
+            'AUC': auroc_score,
+            'Precision': precision_score,
+            'Recall': recall_score,
+            'F1': f1_score
         }
 
 
@@ -79,7 +86,7 @@ class BaseTrainer(object):
         beta2 = 0.999
         self.optimizer = torch.optim.AdamW(
             optim_params,
-            lr=float(self.args.init_lr),
+            lr=float(self.args.lr),
             weight_decay=float(self.args.weight_decay),
             betas=(0.9, beta2),
         )
@@ -131,8 +138,8 @@ class BaseTrainer(object):
             print('\t{:15s}: {}'.format(str(key), value))
 
 class Trainer(BaseTrainer):
-    def __init__(self, model, criterion_cls, base_probs,  args, train_dataloader, val_dataloader, test_dataloader, device):
-        super(Trainer, self).__init__(model, criterion_cls, base_probs, args, device)
+    def __init__(self, model, criterion_cls, args, train_dataloader, val_dataloader, test_dataloader, device):
+        super(Trainer, self).__init__(model, criterion_cls, args, device)
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
         self.test_dataloader = test_dataloader
@@ -140,10 +147,9 @@ class Trainer(BaseTrainer):
     def _train_step(self, epoch):
         train_loss = 0
         self.model.train()
-        for batch_idx, (images, cls_labels, clip_memory) in tqdm(enumerate(self.train_dataloader),total = len(self.train_dataloader)):
+        for batch_idx, (images, cls_labels) in tqdm(enumerate(self.train_dataloader),total = len(self.train_dataloader)):
             images = images.to(self.device)
             cls_labels = cls_labels.to(self.device)
-            self.lr_scheduler.step(cur_epoch=epoch, cur_step=batch_idx)
             preds = self.model(images)
             # cls_labels.shape = (N, 14)
             loss = self.criterion_cls(preds, cls_labels)
@@ -151,6 +157,7 @@ class Trainer(BaseTrainer):
             loss.backward()
             torch.nn.utils.clip_grad_value_(self.model.parameters(), 0.1)
             self.optimizer.step()
+            self.lr_scheduler.step()
             self.optimizer.zero_grad()
         log = {'train_loss': train_loss / len(self.train_dataloader)}
 
@@ -160,20 +167,20 @@ class Trainer(BaseTrainer):
         self.model.eval()
         with torch.no_grad():
             val_gts, val_res = [], []
-            for batch_idx, (images,cls_labels, clip_memory) in tqdm(enumerate(self.val_dataloader),total = len(self.val_dataloader)):
+            for batch_idx, (images,cls_labels) in tqdm(enumerate(self.val_dataloader),total = len(self.val_dataloader)):
                 images = images.to(self.device) 
                 cls_labels = cls_labels.to(self.device)
                 preds = self.model(images)
-                val_gts += cls_labels.tolist()
+                val_gts += cls_labels
                 val_res += preds
             val_score = self.metric.compute(val_gts, val_res)
             log.update(**{'val_' + k: v for k, v in val_score.items()})
         with torch.no_grad():
             test_gts, test_res = [], []
-            for batch_idx, (images, cls_labels, clip_memory) in tqdm(enumerate(self.test_dataloader),total = len(self.test_dataloader)):
+            for batch_idx, (images, cls_labels) in tqdm(enumerate(self.test_dataloader),total = len(self.test_dataloader)):
                 images = images.to(self.device) 
                 preds = self.model(images)
-                test_gts += cls_labels.tolist()
+                test_gts += cls_labels
                 test_res += preds
             test_score = self.metric.compute(test_gts, test_res)
             log.update(**{'test_' + k: v for k, v in test_score.items()})

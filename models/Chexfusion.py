@@ -8,8 +8,8 @@ class Chexfusion(nn.Module):
     def __init__(self, args):
         super(Chexfusion, self).__init__()
         self.vision_extractor = VisionExtractor(args)
-        self.pos_encoding = Summer(PositionalEncoding2D(args.vision_chanels))
-        self.clshead = MLDecoder(num_classes=14, initial_num_features=args.vision_chanels)
+        self.pos_encoding = Summer(PositionalEncoding2D(args.vision_channels))
+        self.clshead = MLDecoder(num_classes=14, initial_num_features=args.vision_channels)
     def forward(self, x):
         _ , _ , patch = self.vision_extractor(x)
         patch_feats = self.pos_encoding(patch)
