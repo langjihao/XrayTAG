@@ -15,7 +15,8 @@ from torchmetrics.classification import (
     MultilabelAUROC,
     MultilabelPrecision,
     MultilabelRecall,
-    MultilabelF1Score
+    MultilabelF1Score,
+    MultilabelAccuracy
 )
 class Metrics:
     def __init__(self, num_classes, device='cpu'):
@@ -25,6 +26,7 @@ class Metrics:
         self.precision_metric = MultilabelPrecision(num_labels=num_classes, average='macro')
         self.recall_metric = MultilabelRecall(num_labels=num_classes, average='macro')
         self.f1_metric = MultilabelF1Score(num_labels=num_classes, average='macro')
+        self.accuracy_metric = MultilabelAccuracy(num_labels=num_classes, average='macro')
     def compute(self,labels,preds):
         if isinstance(labels, list):
             labels = torch.stack(labels)
@@ -37,12 +39,14 @@ class Metrics:
         precision_score = self.precision_metric(preds, labels)
         recall_score = self.recall_metric(preds, labels)
         f1_score = self.f1_metric(preds, labels)
+        accuracy_score = self.accuracy_metric(preds, labels)
         return {
             'mAP': map_score,
             'AUC': auroc_score,
             'Precision': precision_score,
             'Recall': recall_score,
-            'F1': f1_score
+            'F1': f1_score,
+            'Acc': accuracy_score
         }
 
 
@@ -147,6 +151,7 @@ class Trainer(BaseTrainer):
     def _train_step(self, epoch):
         train_loss = 0
         self.model.train()
+        val_gts, val_res = [], []
         for batch_idx, (images, cls_labels) in tqdm(enumerate(self.train_dataloader),total = len(self.train_dataloader)):
             images = images.to(self.device)
             cls_labels = cls_labels.to(self.device)
@@ -159,7 +164,8 @@ class Trainer(BaseTrainer):
             self.optimizer.step()
             self.lr_scheduler.step()
             self.optimizer.zero_grad()
-        log = {'train_loss': train_loss / len(self.train_dataloader)}
+        current_lr = self.optimizer.param_groups[0]['lr']
+        log = {'train_loss': train_loss / len(self.train_dataloader),'learning_rate': current_lr}
 
         return log
 

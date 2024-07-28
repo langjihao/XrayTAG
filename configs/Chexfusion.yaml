@@ -1,7 +1,7 @@
 # ExperimentSettings
-project_name: 'CXRTAG'
+project: 'CXRTAG'
 experiment_name: 'Chexfusion'
-description: 'Chexfusion'
+description: '重新调整二分类，疑病从有'
 seed: 9233
 # SaveSettings
 save_dir: '/hy-tmp/Results/'
@@ -48,8 +48,8 @@ num_workers: 4
 batch_size: 32
 
 # ModelSettingss
-vision_model: 'resnet101'
-vision_channels: 2048
+vision_model: 'convnext_small.in12k_ft_in1k'
+vision_channels: 768
 load_pretrained: False
 
 
