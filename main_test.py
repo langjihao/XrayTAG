@@ -9,7 +9,7 @@ from dataset import create_sampler
 from dataset import create_loader 
 from modules import utils
 
-from modules.config_loader import load_config
+from modules.config import load_config
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'True'
 

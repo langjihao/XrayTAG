@@ -9,7 +9,6 @@ import copy
 from transformers import get_cosine_schedule_with_warmup
 from tqdm import tqdm
 import swanlab
-from torchmetrics import AveragePrecision, AUROC
 from torchmetrics.classification import (
     MultilabelAveragePrecision,
     MultilabelAUROC,
@@ -18,6 +17,9 @@ from torchmetrics.classification import (
     MultilabelF1Score,
     MultilabelAccuracy
 )
+from tabulate import tabulate
+import requests
+import json
 class Metrics:
     def __init__(self, num_classes, device='cpu'):
         self.device = device
@@ -34,12 +36,12 @@ class Metrics:
             preds = torch.stack(preds)
         labels = labels.to(self.device)
         preds = preds.to(self.device)
-        map_score = self.map_metric(preds, labels)
-        auroc_score = self.auroc_metric(preds, labels)
-        precision_score = self.precision_metric(preds, labels)
-        recall_score = self.recall_metric(preds, labels)
-        f1_score = self.f1_metric(preds, labels)
-        accuracy_score = self.accuracy_metric(preds, labels)
+        map_score = round(self.map_metric(preds, labels).item(), 3)
+        auroc_score = round(self.auroc_metric(preds, labels).item(), 3)
+        precision_score = round(self.precision_metric(preds, labels).item(), 3)
+        recall_score = round(self.recall_metric(preds, labels).item(), 3)
+        f1_score = round(self.f1_metric(preds, labels).item(), 3)
+        accuracy_score = round(self.accuracy_metric(preds, labels).item(), 3)
         return {
             'mAP': map_score,
             'AUC': auroc_score,
@@ -49,8 +51,59 @@ class Metrics:
             'Acc': accuracy_score
         }
 
+class AIMonitor():
+    def __init__(self):
+        self.url = "https://api.siliconflow.cn/v1/chat/completions"
 
-    
+        self.payload = {
+            "model": "Qwen/Qwen2-7B-Instruct",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "你是一名深度学习实验分析师，负责一项X光图像病症多标签分类任务的监控和分析，你会收到每轮训练的具体指标，你需要对当前结果给出整体评价，并结合指标变化趋势进行分析，如有必要，指出可能发生的问题并给出建议,语言尽可能精简,以json格式返回{\"overview\":……；\"analysis\":……；\"problem\":none/……；\"advice\":none/……}"
+                },
+            ],
+            "stream": False,
+            "max_tokens": 512,
+            "temperature": 0.7,
+            "top_p": 0.7,
+            "top_k": 50,
+            "frequency_penalty": 0.5,
+            "n": 1
+        }
+        self.headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "authorization": "Bearer sk-uonakeecqldtdyzdifusgjgkzunoswnmerxdnldturogdwsz"
+            }
+        self.messages = [ {
+                    "role": "system",
+                    "content": "你是一名深度学习实验分析师，负责一项X光图像病症多标签分类任务的监控和分析，你会收到每轮训练的具体指标，你需要对当前结果给出整体评价，并结合指标变化趋势进行分析，如有必要，指出可能发生的问题并给出建议,语言尽可能精简,以json格式返回{\"overview\":……；\"analysis\":……；\"problem\":none/……；\"advice\":none/……}"
+                         },]
+    def monitor(self, log):
+        log_str = ', '.join([f"{key}: {value}" for key, value in log.items()])
+        self.messages.append({
+            "role": "user",
+            "content": log_str
+        })
+        self.payload = {
+            "model": "Qwen/Qwen2-7B-Instruct",
+            "messages": self.messages,
+            "stream": False,
+            "max_tokens": 512,
+            "temperature": 0.7,
+            "top_p": 0.7,
+            "top_k": 50,
+            "frequency_penalty": 0.5,
+            "n": 1
+        }
+        response = requests.post(self.url, json=self.payload, headers=self.headers)
+        message = response.json()['choices'][0]['message']['content']
+        self.messages.append({
+            "role": "assistant",
+            "content": message
+        })
+        return(json.loads(message))
 class BaseTrainer(object):
     def __init__(self, model, criterion_cls, args, device):
         self.args = args
@@ -108,7 +161,7 @@ class BaseTrainer(object):
         self.metric = Metrics(14)
         if not os.path.exists(self.checkpoint_dir):
             os.makedirs(self.checkpoint_dir)
-
+        self.AImonitor = AIMonitor()
     @abstractmethod
     def _train_epoch(self, epoch):
         raise NotImplementedError
@@ -135,8 +188,12 @@ class BaseTrainer(object):
                 print("Saving current best to {}".format(best_path))
 
             # print logged information 
-            for key, value in log.items():
-                print('\t{:15s}: {}'.format(str(key), value))
+            table = tabulate(log.items(), headers=['Metric', 'Score'], tablefmt='pretty')
+            print(table)
+            AIanalysis = self.AImonitor.monitor(log)
+            AIanalysis = json.dumps(AIanalysis, indent=4, ensure_ascii=False)
+            print(AIanalysis)
+
         print('Best results w.r.t {}:'.format(self.mnt_metric))
         for key, value in self.log_best.items():
             print('\t{:15s}: {}'.format(str(key), value))
@@ -149,9 +206,9 @@ class Trainer(BaseTrainer):
         self.test_dataloader = test_dataloader
         self.lr_scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=self.args.warmup_steps, num_training_steps=self.args.epochs*len(self.train_dataloader))
     def _train_step(self, epoch):
+        train_gts, train_res = [], []
         train_loss = 0
         self.model.train()
-        val_gts, val_res = [], []
         for batch_idx, (images, cls_labels) in tqdm(enumerate(self.train_dataloader),total = len(self.train_dataloader)):
             images = images.to(self.device)
             cls_labels = cls_labels.to(self.device)
@@ -159,14 +216,17 @@ class Trainer(BaseTrainer):
             # cls_labels.shape = (N, 14)
             loss = self.criterion_cls(preds, cls_labels)
             train_loss += loss.item()
+            train_gts += cls_labels
+            train_res += preds
             loss.backward()
             torch.nn.utils.clip_grad_value_(self.model.parameters(), 0.1)
             self.optimizer.step()
             self.lr_scheduler.step()
             self.optimizer.zero_grad()
+        train_score = self.metric.compute(train_gts, train_res)
         current_lr = self.optimizer.param_groups[0]['lr']
         log = {'train_loss': train_loss / len(self.train_dataloader),'learning_rate': current_lr}
-
+        log.update(**{'train_' + k: v for k, v in train_score.items()})
         return log
 
     def eval_step(self, log):
@@ -192,4 +252,3 @@ class Trainer(BaseTrainer):
             log.update(**{'test_' + k: v for k, v in test_score.items()})
         return log
 
-    

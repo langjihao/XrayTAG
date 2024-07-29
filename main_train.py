@@ -10,7 +10,7 @@ from dataset import create_loader
 from modules import utils
 from modules.loss import get_loss
 
-from modules.config_loader import load_config
+from modules.config import *
 
 os.environ['TOKENIZERS_PARALLELISM'] = 'True'
 
@@ -43,11 +43,11 @@ def main(config, stage='dev'):
         args.ann_path = '/hy-tmp/files256/mimic_full.json'
     else:
         raise ValueError('stage should be one of dev, exp, full')
-    print('loading data from %s'%args.ann_path)
     train_dataset, val_dataset, test_dataset = create_dataset('generation_%s'%args.dataset_name, args)
-    print('number of training samples: %d'%len(train_dataset))
-    print('number of validation samples: %d'%len(val_dataset))
-    print('number of testing samples: %d'%len(test_dataset))
+   
+    print(f'Number of training samples: {len(train_dataset)}')
+    print(f'Number of validation samples: {len(val_dataset)}')
+    print(f'Number of testing samples: {len(test_dataset)}')
 
     samplers = [None, None, None]
 

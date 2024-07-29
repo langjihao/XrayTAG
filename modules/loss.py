@@ -52,6 +52,7 @@ class BCEwithClassWeights(nn.Module):
         self.neg_weights = torch.exp(p)
 
     def forward(self, pred, label):
+        label = label.float()
         # https://www.cse.sc.edu/~songwang/document/cvpr21d.pdf (equation 4)
         weight = label * self.pos_weights.cuda() + (1 - label) * self.neg_weights.cuda()
         loss = nn.functional.binary_cross_entropy_with_logits(pred, label, weight=weight)
@@ -59,7 +60,7 @@ class BCEwithClassWeights(nn.Module):
 
 
 class ASLwithClassWeight(nn.Module):
-    def __init__(self, class_instance_nums, total_instance_num, gamma_neg=4, gamma_pos=1, clip=0.05, eps=1e-8):
+    def __init__(self, class_instance_nums, total_instance_num, gamma_neg=5, gamma_pos=1, clip=0.05, eps=1e-8):
         super(ASLwithClassWeight, self).__init__()
         class_instance_nums = torch.tensor(class_instance_nums, dtype=torch.float32)
         p = class_instance_nums / total_instance_num

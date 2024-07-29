@@ -1,7 +1,7 @@
 # ExperimentSettings
 project: 'CXRTAG'
-experiment_name: 'Chexfusion'
-description: '重新调整二分类，疑病从有'
+experiment_name: 'Chexfusion-wbceloss'
+description: '更换wbce loss，因为只有14分类的话，不平衡差异其实没那么大'
 seed: 9233
 # SaveSettings
 save_dir: '/hy-tmp/Results/'
@@ -45,7 +45,7 @@ total_instance_num: 264849
 # DataLoaderSettings
 dataset_name: 'mimic_cxr'
 num_workers: 4
-batch_size: 32
+batch_size: 64
 
 # ModelSettingss
 vision_model: 'convnext_small.in12k_ft_in1k'
@@ -61,7 +61,7 @@ early_stop: 5
 monitor_metric: 'mAP'
 
 # Optimization
-loss: 'asl'
+loss: 'wbce'
 # init_lr: !!float 3e-5
 # min_lr: !!float 5e-6
 # warmup_lr: !!float 5e-7
