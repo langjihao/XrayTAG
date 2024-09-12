@@ -223,10 +223,10 @@ class Trainer(BaseTrainer):
             self.optimizer.step()
             self.lr_scheduler.step()
             self.optimizer.zero_grad()
-        train_score = self.metric.compute(train_gts, train_res)
+        # train_score = self.metric.compute(train_gts, train_res)
         current_lr = self.optimizer.param_groups[0]['lr']
         log = {'train_loss': train_loss / len(self.train_dataloader),'learning_rate': current_lr}
-        log.update(**{'train_' + k: v for k, v in train_score.items()})
+        # log.update(**{'train_' + k: v for k, v in train_score.items()})
         return log
 
     def eval_step(self, log):

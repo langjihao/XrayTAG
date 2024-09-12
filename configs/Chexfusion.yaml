@@ -1,6 +1,6 @@
 # ExperimentSettings
 project: 'CXRTAG'
-experiment_name: 'Chexfusion-wbceloss'
+experiment_name: 'MixUp-0.5'
 description: '更换wbce loss，因为只有14分类的话，不平衡差异其实没那么大'
 seed: 9233
 # SaveSettings
@@ -45,7 +45,7 @@ total_instance_num: 264849
 # DataLoaderSettings
 dataset_name: 'mimic_cxr'
 num_workers: 4
-batch_size: 64
+batch_size: 128
 
 # ModelSettingss
 vision_model: 'convnext_small.in12k_ft_in1k'
@@ -70,3 +70,5 @@ loss: 'wbce'
 lr: !!float 3e-5
 warmup_steps: 300
 weight_decay: 0.05
+
+mixup_alpha: 0.5
