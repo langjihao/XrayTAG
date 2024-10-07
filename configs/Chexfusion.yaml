@@ -1,7 +1,7 @@
 # ExperimentSettings
 project: 'CXRTAG'
 experiment_name: 'Chexfusion-wbceloss'
-description: '更换wbce loss，因为只有14分类的话，不平衡差异其实没那么大'
+description: 'swintransformer'
 seed: 9233
 # SaveSettings
 save_dir: '/hy-tmp/Results/'
@@ -48,9 +48,8 @@ num_workers: 4
 batch_size: 64
 
 # ModelSettingss
-vision_model: 'convnext_small.in12k_ft_in1k'
+vision_model: 'swin_tiny_patch4_window7_224'
 vision_channels: 768
-load_pretrained: False
 
 
 # TrainerSettings

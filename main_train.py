@@ -54,10 +54,10 @@ def main(config, stage='dev'):
     train_dataloader, val_dataloader, test_dataloader = create_loader([train_dataset, val_dataset, test_dataset], samplers, batch_size=[args.batch_size]*3, num_workers=[4,4,4], is_trains=[True, False, False], collate_fns=[None, None, None]) 
 
     model = Chexfusion(args)
-    if args.load_pretrained:
-        state_dict = torch.load(args.load_pretrained, map_location="cpu")
-        msg = model.load_state_dict(state_dict, strict=False)
-        print("load checkpoint from {}".format(args.load_pretrained))
+    # if args.load_pretrained:
+    #     state_dict = torch.load(args.load_pretrained, map_location="cpu")
+    #     msg = model.load_state_dict(state_dict, strict=False)
+    #     print("load checkpoint from {}".format(args.load_pretrained))
 
     # get function handles of loss and metrics
     criterion_cls = get_loss(type=args.loss,class_instance_nums=args.class_instance_nums,total_instance_num=args.total_instance_num)
