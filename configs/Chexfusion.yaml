@@ -45,7 +45,7 @@ total_instance_num: 264849
 # DataLoaderSettings
 dataset_name: 'mimic_cxr'
 num_workers: 4
-batch_size: 64
+batch_size: 32
 
 # ModelSettingss
 vision_model: 'convnext_small.in12k_ft_in1k'

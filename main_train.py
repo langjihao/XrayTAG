@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import numpy as np
 from modules.trainer import Trainer
-from models.Chexfusion import Chexfusion
+from models.VisionLSTM import VisionLSTM
 from dataset import create_dataset 
 from dataset import create_sampler 
 from dataset import create_loader 
@@ -53,12 +53,9 @@ def main(config, stage='dev'):
 
     train_dataloader, val_dataloader, test_dataloader = create_loader([train_dataset, val_dataset, test_dataset], samplers, batch_size=[args.batch_size]*3, num_workers=[4,4,4], is_trains=[True, False, False], collate_fns=[None, None, None]) 
 
-    model = Chexfusion(args)
-    if args.load_pretrained:
-        state_dict = torch.load(args.load_pretrained, map_location="cpu")
-        msg = model.load_state_dict(state_dict, strict=False)
-        print("load checkpoint from {}".format(args.load_pretrained))
-
+    model = VisionLSTM(args)
+    state_dict = torch.load('/root/R2Gen-Mamba/vil2-small.pth', map_location='cpu')
+    model.load_state_dict(state_dict, strict=False)
     # get function handles of loss and metrics
     criterion_cls = get_loss(type=args.loss,class_instance_nums=args.class_instance_nums,total_instance_num=args.total_instance_num)
 
@@ -69,4 +66,4 @@ def main(config, stage='dev'):
     trainer.train()
 
 if __name__ == '__main__':
-    main(config = './configs/Chexfusion.yaml',stage='full')
+    main(config = './configs/xLSTM.yaml',stage='full')
