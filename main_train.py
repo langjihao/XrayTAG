@@ -54,7 +54,7 @@ def main(config, stage='dev'):
     train_dataloader, val_dataloader, test_dataloader = create_loader([train_dataset, val_dataset, test_dataset], samplers, batch_size=[args.batch_size]*3, num_workers=[4,4,4], is_trains=[True, False, False], collate_fns=[None, None, None]) 
 
     model = VisionLSTM(args)
-    state_dict = torch.load('/root/R2Gen-Mamba/vil2-small.pth', map_location='cpu')
+    state_dict = torch.load('./vil2-small.pth', map_location='cpu')
     model.load_state_dict(state_dict, strict=False)
     # get function handles of loss and metrics
     criterion_cls = get_loss(type=args.loss,class_instance_nums=args.class_instance_nums,total_instance_num=args.total_instance_num)
@@ -66,4 +66,4 @@ def main(config, stage='dev'):
     trainer.train()
 
 if __name__ == '__main__':
-    main(config = './configs/xLSTM.yaml',stage='full')
+    main(config = './configs/xLSTM.yaml',stage='exp')

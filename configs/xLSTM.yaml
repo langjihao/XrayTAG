@@ -1,6 +1,6 @@
 # ExperimentSettings
 project: 'CXRTAG'
-experiment_name: 'Chexfusion-wbceloss'
+experiment_name: 'xlstm'
 description: '更换wbce loss，因为只有14分类的话，不平衡差异其实没那么大'
 seed: 9233
 # SaveSettings
@@ -45,7 +45,7 @@ total_instance_num: 264849
 # DataLoaderSettings
 dataset_name: 'mimic_cxr'
 num_workers: 4
-batch_size: 32
+batch_size: 64
 
 
 
