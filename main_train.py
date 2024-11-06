@@ -60,8 +60,8 @@ def main(config, stage='dev'):
         print("load checkpoint from {}".format(args.load_pretrained))
 
     # get function handles of loss and metrics
-    criterion_cls = get_loss(type=args.loss,class_instance_nums=args.class_instance_nums,total_instance_num=args.total_instance_num)
-
+    # criterion_cls = get_loss(type=args.loss,class_instance_nums=args.class_instance_nums,total_instance_num=args.total_instance_num)
+    criterion_cls = nn.CrossEntropyLoss()
 
     model = model.to(device)   
     # build trainer and start to train

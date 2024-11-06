@@ -205,6 +205,8 @@ class Trainer(BaseTrainer):
         self.val_dataloader = val_dataloader
         self.test_dataloader = test_dataloader
         self.lr_scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=self.args.warmup_steps, num_training_steps=self.args.epochs*len(self.train_dataloader))
+        base_probs = args.distribution
+        self.base_probs = np.array(base_probs) / np.max(base_probs)
     def _train_step(self, epoch):
         train_gts, train_res = [], []
         train_loss = 0
@@ -212,12 +214,12 @@ class Trainer(BaseTrainer):
         for batch_idx, (images, cls_labels) in tqdm(enumerate(self.train_dataloader),total = len(self.train_dataloader)):
             images = images.to(self.device)
             cls_labels = cls_labels.to(self.device)
-            preds = self.model(images)
+            cls_preds,preds = self.model(images, self.base_probs)
             # cls_labels.shape = (N, 14)
             loss = self.criterion_cls(preds, cls_labels)
             train_loss += loss.item()
             train_gts += cls_labels
-            train_res += preds
+            train_res += cls_preds
             loss.backward()
             torch.nn.utils.clip_grad_value_(self.model.parameters(), 0.1)
             self.optimizer.step()
@@ -230,24 +232,36 @@ class Trainer(BaseTrainer):
         return log
 
     def eval_step(self, log):
+        logits_list = []
+        counts = []
         self.model.eval()
         with torch.no_grad():
             val_gts, val_res = [], []
             for batch_idx, (images,cls_labels) in tqdm(enumerate(self.val_dataloader),total = len(self.val_dataloader)):
                 images = images.to(self.device) 
                 cls_labels = cls_labels.to(self.device)
-                preds = self.model(images)
+                cls_preds,logits = self.model.generate(images)
+                logit = cls_preds * logits
+                logits_list.append(logit.cpu().numpy())
+                counts.append(cls_labels.cpu().numpy())
                 val_gts += cls_labels
-                val_res += preds
+                val_res += cls_preds
+            logits = np.concatenate(logits_list, axis=0)
+            counts = np.concatenate(counts, axis=0)
+            logits = np.sum(logits, 0)
+            counts = np.sum(counts, 0)
+            logits = logits / counts
+            logits /= np.max(logits)
+            self.base_probs = logits
             val_score = self.metric.compute(val_gts, val_res)
             log.update(**{'val_' + k: v for k, v in val_score.items()})
         with torch.no_grad():
             test_gts, test_res = [], []
             for batch_idx, (images, cls_labels) in tqdm(enumerate(self.test_dataloader),total = len(self.test_dataloader)):
                 images = images.to(self.device) 
-                preds = self.model(images)
+                cls_preds,_ = self.model.generate(images)
                 test_gts += cls_labels
-                test_res += preds
+                test_res += cls_preds
             test_score = self.metric.compute(test_gts, test_res)
             log.update(**{'test_' + k: v for k, v in test_score.items()})
         return log
