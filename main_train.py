@@ -54,11 +54,14 @@ def main(config, stage='dev'):
     train_dataloader, val_dataloader, test_dataloader = create_loader([train_dataset, val_dataset, test_dataset], samplers, batch_size=[args.batch_size]*3, num_workers=[4,4,4], is_trains=[True, False, False], collate_fns=[None, None, None]) 
 
     model = VisionLSTM(args)
-    state_dict = torch.load('./vil2-small.pth', map_location='cpu')
-    model.load_state_dict(state_dict, strict=False)
-    # get function handles of loss and metrics
-    criterion_cls = get_loss(type=args.loss,class_instance_nums=args.class_instance_nums,total_instance_num=args.total_instance_num)
+    # if args.load_pretrained:
+    #     state_dict = torch.load(args.load_pretrained, map_location="cpu")
+    #     msg = model.load_state_dict(state_dict, strict=False)
+    #     print("load checkpoint from {}".format(args.load_pretrained))
 
+    # get function handles of loss and metrics
+    # criterion_cls = get_loss(type=args.loss,class_instance_nums=args.class_instance_nums,total_instance_num=args.total_instance_num)
+    criterion_cls = nn.CrossEntropyLoss()
 
     model = model.to(device)   
     # build trainer and start to train
@@ -66,4 +69,4 @@ def main(config, stage='dev'):
     trainer.train()
 
 if __name__ == '__main__':
-    main(config = './configs/xLSTM.yaml',stage='exp')
+    main(config = './configs/xLSTM.yaml',stage='full')
