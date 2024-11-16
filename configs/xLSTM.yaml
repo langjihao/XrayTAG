@@ -1,6 +1,6 @@
 # ExperimentSettings
 project: 'CXRTAG'
-experiment_name: 'xlstm-promptmrg分类头'
+experiment_name: 'xlstm-promptmrg分类头,同时修改隐藏层维度为768'
 description: ''
 seed: 9233
 # SaveSettings
@@ -61,7 +61,7 @@ total_instance_num: 264849
 # DataLoaderSettings
 dataset_name: 'mimic_cxr'
 num_workers: 4
-batch_size: 64
+batch_size: 32
 
 
 

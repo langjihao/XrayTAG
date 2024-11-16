@@ -5,7 +5,6 @@ import numpy as np
 from modules.trainer import Trainer
 from models.VisionLSTM import VisionLSTM
 from dataset import create_dataset 
-from dataset import create_sampler 
 from dataset import create_loader 
 from modules import utils
 from modules.loss import get_loss
@@ -60,8 +59,7 @@ def main(config, stage='dev'):
     #     print("load checkpoint from {}".format(args.load_pretrained))
 
     # get function handles of loss and metrics
-    # criterion_cls = get_loss(type=args.loss,class_instance_nums=args.class_instance_nums,total_instance_num=args.total_instance_num)
-    criterion_cls = nn.CrossEntropyLoss()
+    criterion_cls = get_loss(type=args.loss,class_instance_nums=args.class_instance_nums,total_instance_num=args.total_instance_num)
 
     model = model.to(device)   
     # build trainer and start to train

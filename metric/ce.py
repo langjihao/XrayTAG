@@ -119,7 +119,7 @@ class CheXbertMetrics():
             res_chexbert += re_chexbert
         gts_chexbert = np.array(gts_chexbert)
         res_chexbert = np.array(res_chexbert)
-        print(res_chexbert)
+        
         res_chexbert = (res_chexbert == 1)
         gts_chexbert = (gts_chexbert == 1)
 

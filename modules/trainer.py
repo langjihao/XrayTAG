@@ -190,9 +190,12 @@ class BaseTrainer(object):
             # print logged information 
             table = tabulate(log.items(), headers=['Metric', 'Score'], tablefmt='pretty')
             print(table)
-            AIanalysis = self.AImonitor.monitor(log)
-            AIanalysis = json.dumps(AIanalysis, indent=4, ensure_ascii=False)
-            print(AIanalysis)
+            try:
+                AIanalysis = self.AImonitor.monitor(log)
+                AIanalysis = json.dumps(AIanalysis, indent=4, ensure_ascii=False)
+                print(AIanalysis)
+            except:
+                pass
 
         print('Best results w.r.t {}:'.format(self.mnt_metric))
         for key, value in self.log_best.items():
@@ -214,9 +217,10 @@ class Trainer(BaseTrainer):
         for batch_idx, (images, cls_labels) in tqdm(enumerate(self.train_dataloader),total = len(self.train_dataloader)):
             images = images.to(self.device)
             cls_labels = cls_labels.to(self.device)
-            cls_preds,preds = self.model(images, self.base_probs)
+            cls_preds,preds = self.model(images)
             # cls_labels.shape = (N, 14)
             loss = self.criterion_cls(preds, cls_labels)
+            # train_loss用于计算平均loss
             train_loss += loss.item()
             train_gts += cls_labels
             train_res += cls_preds
@@ -232,34 +236,23 @@ class Trainer(BaseTrainer):
         return log
 
     def eval_step(self, log):
-        logits_list = []
-        counts = []
         self.model.eval()
         with torch.no_grad():
             val_gts, val_res = [], []
             for batch_idx, (images,cls_labels) in tqdm(enumerate(self.val_dataloader),total = len(self.val_dataloader)):
                 images = images.to(self.device) 
                 cls_labels = cls_labels.to(self.device)
-                cls_preds,logits = self.model.generate(images)
-                logit = cls_preds * logits
-                logits_list.append(logit.cpu().numpy())
-                counts.append(cls_labels.cpu().numpy())
+                cls_preds,logits = self.model(images)
                 val_gts += cls_labels
                 val_res += cls_preds
-            logits = np.concatenate(logits_list, axis=0)
-            counts = np.concatenate(counts, axis=0)
-            logits = np.sum(logits, 0)
-            counts = np.sum(counts, 0)
-            logits = logits / counts
-            logits /= np.max(logits)
-            self.base_probs = logits
             val_score = self.metric.compute(val_gts, val_res)
             log.update(**{'val_' + k: v for k, v in val_score.items()})
+        
         with torch.no_grad():
             test_gts, test_res = [], []
             for batch_idx, (images, cls_labels) in tqdm(enumerate(self.test_dataloader),total = len(self.test_dataloader)):
                 images = images.to(self.device) 
-                cls_preds,_ = self.model.generate(images)
+                cls_preds,_ = self.model(images)
                 test_gts += cls_labels
                 test_res += cls_preds
             test_score = self.metric.compute(test_gts, test_res)
