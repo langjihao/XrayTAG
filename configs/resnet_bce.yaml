@@ -1,0 +1,74 @@
+# ResNet101 + BCE损失配置
+# ExperimentSettings
+project: 'TAG'
+experiment_name: 'ResNet101_BCE_Baseline'
+description: 'ResNet101 + 加权BCE损失 - 简单有效的基线'
+seed: 9233
+
+# SaveSettings
+save_dir: '/hy-tmp/Results/'
+
+# DataInputSettings
+image_dir: '/hy-tmp/files256/'
+image_size: 224
+class_name:   
+  [ Enlarged Cardiomediastinum,
+    Cardiomegaly,
+    Lung Opacity,
+    Lung Lesion,
+    Edema,
+    Consolidation,
+    Pneumonia,
+    Atelectasis,
+    Pneumothorax,
+    Pleural Effusion,
+    Pleural Other,
+    Fracture,
+    Support Devices,
+    No Finding ]
+class_instance_nums:
+  [ 30119,
+    76900,
+    79931,
+    2533,
+    38574,
+    16038,
+    48093,
+    67597,
+    14983,
+    69240,
+    675,
+    11883,
+    89140,
+    41869, ]
+total_instance_num: 264849
+
+# DataLoaderSettings  
+dataset_name: 'mimic_cxr'
+num_workers: 4
+batch_size: 64
+
+# ModelSettings - ResNet基线
+vision_model: 'resnet101'
+vision_channels: 2048
+load_pretrained: True  # 使用预训练权重
+use_enhanced_head: False  # 先用简单的线性层
+dropout_rate: 0.2  # 降低dropout
+
+# TrainerSettings
+n_gpu: 1
+device: 'cuda'
+epochs: 30
+early_stop: 8
+monitor_metric: 'mAP'
+
+# 损失函数配置 - 关键改动
+loss: 'wbce'  # 使用加权BCE损失
+# 可选项: 'bce' (标准BCE) 或 'wbce' (加权BCE)
+
+# 优化器配置
+lr: !!float 2e-4  # 提高学习率
+warmup_steps: 500  # 适中的预热步数
+weight_decay: 0.01  # 降低权重衰减
+optimizer: 'adamw'
+scheduler: 'cosine_warmup' 

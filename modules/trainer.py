@@ -36,12 +36,20 @@ class Metrics:
             preds = torch.stack(preds)
         labels = labels.to(self.device)
         preds = preds.to(self.device)
-        map_score = round(self.map_metric(preds, labels).item(), 3)
-        auroc_score = round(self.auroc_metric(preds, labels).item(), 3)
-        precision_score = round(self.precision_metric(preds, labels).item(), 3)
-        recall_score = round(self.recall_metric(preds, labels).item(), 3)
-        f1_score = round(self.f1_metric(preds, labels).item(), 3)
-        accuracy_score = round(self.accuracy_metric(preds, labels).item(), 3)
+        
+        # 关键修复：将float标签转换为int类型以适配torchmetrics
+        # BCE损失需要float标签，但torchmetrics需要int标签
+        if labels.dtype == torch.float32 or labels.dtype == torch.float64:
+            labels_int = labels.int()
+        else:
+            labels_int = labels
+            
+        map_score = round(self.map_metric(preds, labels_int).item(), 3)
+        auroc_score = round(self.auroc_metric(preds, labels_int).item(), 3)
+        precision_score = round(self.precision_metric(preds, labels_int).item(), 3)
+        recall_score = round(self.recall_metric(preds, labels_int).item(), 3)
+        f1_score = round(self.f1_metric(preds, labels_int).item(), 3)
+        accuracy_score = round(self.accuracy_metric(preds, labels_int).item(), 3)
         return {
             'mAP': map_score,
             'AUC': auroc_score,

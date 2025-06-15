@@ -63,7 +63,7 @@ class generation_train(Dataset):
         
         labels = ann['labels'][:14]
         labels = [0 if label in [0, 2] else 1 for label in labels]
-        labels = torch.from_numpy(np.array(labels)).long()
+        labels = torch.from_numpy(np.array(labels)).float()
         # clip_indices = ann['clip_indices'][:self.args.clip_k]
         # clip_memory = self.clip_features[clip_indices]
         # clip_memory = torch.from_numpy(clip_memory).float()
@@ -95,10 +95,9 @@ class generation_eval(Dataset):
         image = Image.open(os.path.join(self.image_root, image_path[0].replace('jpg','png'))).convert('RGB')
         image = self.transform(image)
 
-
         labels = ann['labels'][:14]
         labels = [0 if label in [0, 2] else 1 for label in labels]
-        labels = torch.from_numpy(np.array(labels))
+        labels = torch.from_numpy(np.array(labels)).float()
         # clip_indices = ann['clip_indices'][:self.args.clip_k]
         # clip_memory = self.clip_features[clip_indices]
         # clip_memory = torch.from_numpy(clip_memory).float()

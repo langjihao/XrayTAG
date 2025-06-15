@@ -1,0 +1,77 @@
+# ResNet101 优化配置 - 使用标准BCE损失
+# ExperimentSettings
+project: 'TAG'
+experiment_name: 'ResNet101_Optimized_BCE'
+description: 'ResNet101优化配置-使用标准BCE损失,提高学习率,降低权重衰减'
+seed: 9233
+
+# SaveSettings
+save_dir: '/hy-tmp/Results/'
+
+# DataInputSettings
+image_dir: '/hy-tmp/files256/'
+image_size: 224
+class_name:   
+  [ Enlarged Cardiomediastinum,
+    Cardiomegaly,
+    Lung Opacity,
+    Lung Lesion,
+    Edema,
+    Consolidation,
+    Pneumonia,
+    Atelectasis,
+    Pneumothorax,
+    Pleural Effusion,
+    Pleural Other,
+    Fracture,
+    Support Devices,
+    No Finding ]
+class_instance_nums:
+  [ 30119,
+    76900,
+    79931,
+    2533,
+    38574,
+    16038,
+    48093,
+    67597,
+    14983,
+    69240,
+    675,
+    11883,
+    89140,
+    41869, ]
+total_instance_num: 264849
+
+# DataLoaderSettings  
+dataset_name: 'mimic_cxr'
+num_workers: 4
+batch_size: 64
+
+# ModelSettings - ResNet优化
+vision_model: 'resnet101'
+vision_channels: 2048
+load_pretrained: True  # 关键：使用预训练权重
+use_enhanced_head: True  # 使用增强的分类头
+dropout_rate: 0.3  # 适中的dropout
+use_spatial_attention: False  # 先不用注意力机制
+
+# TrainerSettings
+n_gpu: 1
+device: 'cuda'
+epochs: 40  # BCE通常收敛更快
+early_stop: 10  
+monitor_metric: 'mAP'
+
+# 优化策略 - 针对BCE损失调整
+loss: 'bce'  # 使用标准BCE损失
+lr: !!float 2e-4  # 稍微提高学习率，BCE通常可以承受更高学习率
+warmup_steps: 800  # 适当减少预热步数
+weight_decay: 0.01  # 保持较低的权重衰减
+optimizer: 'adamw'
+scheduler: 'cosine_warmup'
+
+# 数据增强
+use_mixup: False  
+use_cutmix: False
+augmentation_strength: 'medium'  # 中等强度数据增强 
