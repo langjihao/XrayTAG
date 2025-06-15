@@ -8,13 +8,13 @@ class Chexfusion(nn.Module):
     def __init__(self, args):
         super(Chexfusion, self).__init__()
         self.vision_extractor = VisionExtractor(args)
-        self.pos_encoding = Summer(PositionalEncoding2D(args.vision_channels))
-        self.clshead = MLDecoder(num_classes=14, initial_num_features=args.vision_channels)
+        self.head = nn.Linear(args.vision_channels,14)
+        # self.pos_encoding = Summer(PositionalEncoding2D(args.vision_channels))
+        # self.clshead = MLDecoder(num_classes=14, initial_num_features=args.vision_channels)
     def forward(self, x):
-        _ , _ , patch = self.vision_extractor(x)
-        patch_feats = self.pos_encoding(patch)
-        preds = self.clshead(patch_feats)
-        return preds
+        _ , avg_feats , patch = self.vision_extractor(x)
+        cls_preds = torch.sigmoid(self.head(avg_feats))
+        return cls_preds,cls_preds
 
 if __name__ == '__main__':
     from box import Box
